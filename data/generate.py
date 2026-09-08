@@ -60,9 +60,9 @@ def generate_synthetic_data():
     })
     
     # Save datasets
-    os.makedirs('data', exist_ok=True)
-    data.to_csv('data/lotka_volterra_data.csv', index=False)
-    print("Data generation complete. Saved to 'data/lotka_volterra_data.csv'.")
+    os.makedirs('data/raw', exist_ok=True)
+    data.to_csv('data/raw/lotka_volterra_data.csv', index=False)
+    print("Data generation complete. Saved to 'data/raw/lotka_volterra_data.csv'.")
 
 if __name__ == '__main__':
     generate_synthetic_data()
