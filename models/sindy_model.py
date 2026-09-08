@@ -10,7 +10,7 @@ def lotka_volterra(t, z):
     x, y = z
     return [alpha * x - beta * x * y, delta * x * y - gamma * y]
 
-t_span = (0,20)
+t_span = (0,40)
 t_eval = np.linspace(t_span[0], t_span[1], 1000)
 z0 = [10.0, 5.0]
 
