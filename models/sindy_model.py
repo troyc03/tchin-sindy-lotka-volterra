@@ -2,62 +2,68 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 import pysindy as ps
+from lotka_volterra import lotka_volterra
+from pysindy import SINDy
+from pysindy.optimizers import STLSQ
 
-alpha, beta = 1.1, 0.4
-delta, gamma = 0.1, 0.4
+# Define the parameters for the Lotka-Volterra model
+alpha, beta = 1.5, 1.0
+delta, gamma = 0.5, 1.0
 
-def lotka_volterra(t, z):
-    x, y = z
-    return [alpha * x - beta * x * y, delta * x * y - gamma * y]
+# Define the initial conditions and time span for the simulation
+initial_conditions = [10.0, 5.0]  # Initial populations of prey and predator
+t_span = (0, 20)  # Time span for the simulation
+t_eval = np.linspace(t_span[0], t_span[1], 400)
 
-t_span = (0,40)
-t_eval = np.linspace(t_span[0], t_span[1], 1000)
-z0 = [10.0, 5.0]
-
-sol = solve_ivp(lotka_volterra, t_span, z0, t_eval=t_eval)
-X = sol.y.T
-
-np.random.seed(42)
-noise_level = 0.05
-X_noisy = X + noise_level * np.std(X, axis=0) * np.random.randn(*X.shape)
-
-feature_names = ["x", "y"]
-poly_library = ps.PolynomialLibrary(degree=2)
-optimizer = ps.STLSQ(threshold=0.1)
-
-model = ps.SINDy(
-    feature_library=poly_library,
-    optimizer=optimizer,
+# Simulate the Lotka-Volterra system
+solution = solve_ivp(
+    lotka_volterra,
+    t_span,
+    initial_conditions,
+    args=(alpha, beta, delta, gamma),
+    t_eval=t_eval,
+    method='RK45'
 )
-model.fit(X_noisy, t=t_eval)
 
-X_sim = model.simulate(z0, t_eval)
+# Extract the time and state variables from the solution
+t = solution.t
+x = solution.y[0]  # Prey population
+y = solution.y[1]  # Predator population    
 
-fig, axs = plt.subplots(1, 2, figsize=(14, 5))
+# Build the state matrix for SINDy
+X = np.vstack((x, y)).T  # Shape: (n_samples, n_features)   
+y = np.vstack((np.gradient(x, t), np.gradient(y, t))).T  # Shape: (n_samples, n_features)   
 
-axs[0].plot(t_eval, X[:, 0], 'k-', label='True Prey', alpha=0.7)
-axs[0].plot(t_eval, X[:, 1], 'b-', label='True Predator', alpha=0.7)
-axs[0].plot(t_eval, X_sim[:, 0], 'r--', label='SINDy Prey')
-axs[0].plot(t_eval, X_sim[:, 1], 'g--', label='SINDy Predator')
-axs[0].scatter(t_eval[::20], X_noisy[::20, 0], color='black', alpha=0.3, label='Noisy Prey Data', s=10)
-axs[0].scatter(t_eval[::20], X_noisy[::20, 1], color='blue', alpha=0.3, label='Noisy Predator Data', s=10)
-axs[0].set_xlabel('Time')
-axs[0].set_ylabel('Population')
-axs[0].set_title('Solution Plot (Time Series)')
-axs[0].legend()
-axs[0].grid(True)
+# Define the SINDy model with finite difference differentiation and STLSQ optimizer
+optimizer = STLSQ(threshold=0.1)
+model = SINDy(optimizer=optimizer, feature_library=ps.PolynomialLibrary(degree=2), differentiation_method=ps.FiniteDifference())  
 
-axs[1].plot(X[:, 0], X[:, 1], 'k-', label='True Trajectory', alpha=0.7)
-axs[1].plot(X_sim[:, 0], X_sim[:, 1], 'r--', label='SINDy Trajectory')
-axs[1].scatter(X_noisy[::20, 0], X_noisy[::20, 1], color='purple', alpha=0.3, label='Noisy Data Points', s=10)
-axs[1].set_xlabel('Prey Population (x)')
-axs[1].set_ylabel('Predator Population (y)')
-axs[1].set_title('Phase Portrait')
-axs[1].legend()
-axs[1].grid(True)
+# Fit the SINDy model to the data
+model.fit(X, t=t, x_dot=y)
 
-plt.tight_layout()
-plt.show()
-
-print("--- Discovered Equations ---")
+# Print the discovered equations
 model.print()
+
+# Simulate the discovered model
+t_sim = np.linspace(0, 20, 400)
+X_sim = model.simulate(X[0], t_sim)
+
+# Plot the original and simulated data for comparison
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+plt.plot(t, x, label='Original Prey (x)', color='tab:blue', linewidth=2)
+plt.plot(t_sim, X_sim[:, 0], '--', label='Simulated Prey (x)', color='tab:blue', linewidth=2)
+plt.xlabel('Time')
+plt.ylabel('Population')
+plt.title('Prey Population Comparison')
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.subplot(1, 2, 2)
+plt.plot(t, y, label='Original Predator (y)', color='tab:orange', linewidth=2)
+plt.plot(t_sim, X_sim[:, 1], '--', label='Simulated Predator (y)', color='tab:orange', linewidth=2)
+plt.xlabel('Time')
+plt.ylabel('Population')
+plt.title('Predator Population Comparison')
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.tight_layout()
+plt.legend()    
+plt.show()
