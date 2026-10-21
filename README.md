@@ -10,13 +10,10 @@ The [Lotka–Volterra equations](https://en.wikipedia.org/wiki/Lotka%E2%80%93Vol
 
 The governing equations are
 
-\[
-\frac{dx}{dt} = \alpha x - \beta xy
-\]
 
-\[
-\frac{dy}{dt} = \delta xy - \gamma y
-\]
+$\frac{dx}{dt} = \alpha x - \beta xy$
+
+$\frac{dy}{dt} = \delta xy - \gamma y$
 
 where:
 
